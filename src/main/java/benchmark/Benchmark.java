@@ -17,10 +17,15 @@ public class Benchmark {
         try (PrintWriter writer = new PrintWriter("results/results.csv", "UTF-8")) {
             writer.println("workload,variant,structure,n,time_ms,steps,moves,comparisons");
             for (int n : sizes) {
-                randomAccess(writer, n);
-                search(writer, n);
-                insertAndRemove(writer, n, "head");
-                insertAndRemove(writer, n, "middle");
+                Random random = new Random(42);
+                int[] values = new int[n];
+                for (int i = 0; i < n; i++) {
+                    values[i] = random.nextInt(n);
+                }
+                randomAccess(writer, values);
+                search(writer, values);
+                insertAndRemove(writer, values, "head");
+                insertAndRemove(writer, values, "middle");
                 priorityProcessing(writer, n);
                 writer.flush();
                 System.out.println("Finished n=" + n);
@@ -31,13 +36,14 @@ public class Benchmark {
         }
     }
 
-    private static void randomAccess(PrintWriter writer, int n) {
+    private static void randomAccess(PrintWriter writer, int[] values) {
+        int n = values.length;
         Random random = new Random(42);
         int[] indexes = new int[10000];
         long expectedSum = 0;
         for (int i = 0; i < indexes.length; i++) {
             indexes[i] = random.nextInt(n);
-            expectedSum += indexes[i];
+            expectedSum += values[indexes[i]];
         }
         long[] arrayTimes = new long[5];
         long[] listTimes = new long[5];
@@ -45,8 +51,8 @@ public class Benchmark {
             DynamicArray array = new DynamicArray();
             MyLinkedList list = new MyLinkedList();
             for (int i = 0; i < n; i++) {
-                array.add(i);
-                list.add(i);
+                array.add(values[i]);
+                list.add(values[i]);
             }
             array.getMetrics().reset();
             list.getMetrics().reset();
@@ -79,12 +85,13 @@ public class Benchmark {
         }
     }
 
-    private static void search(PrintWriter writer, int n) {
+    private static void search(PrintWriter writer, int[] values) {
+        int n = values.length;
         Random random = new Random(42);
         int[] queries = new int[1000];
         for (int i = 0; i < queries.length; i++) {
             if (i < 500) {
-                queries[i] = random.nextInt(n);
+                queries[i] = values[random.nextInt(n)];
             } else {
                 queries[i] = n + random.nextInt(n);
             }
@@ -95,8 +102,8 @@ public class Benchmark {
             DynamicArray array = new DynamicArray();
             MyLinkedList list = new MyLinkedList();
             for (int i = 0; i < n; i++) {
-                array.add(i);
-                list.add(i);
+                array.add(values[i]);
+                list.add(values[i]);
             }
             array.getMetrics().reset();
             list.getMetrics().reset();
@@ -132,7 +139,8 @@ public class Benchmark {
         }
     }
 
-    private static void insertAndRemove(PrintWriter writer, int n, String variant) {
+    private static void insertAndRemove(PrintWriter writer, int[] values, String variant) {
+        int n = values.length;
         int index = 0;
         if (variant.equals("middle")) {
             index = n / 2;
@@ -143,8 +151,8 @@ public class Benchmark {
             DynamicArray array = new DynamicArray();
             MyLinkedList list = new MyLinkedList();
             for (int i = 0; i < n; i++) {
-                array.add(i);
-                list.add(i);
+                array.add(values[i]);
+                list.add(values[i]);
             }
             array.getMetrics().reset();
             list.getMetrics().reset();

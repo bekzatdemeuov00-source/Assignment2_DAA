@@ -1,87 +1,139 @@
-# Assignment 2 — Design and Analysis of Algorithms
+﻿# Assignment 2 — Design and Analysis of Algorithms
 
-Простой проект на Java: динамический массив, односвязный список и минимальная куча.
-Все три структуры хранят значения `int`. Готовые коллекции используются только в тестах.
+A simple Java project with DynamicArray, MyLinkedList and MinHeap.
+The structures store primitive int values and count operations with Metrics.
 
-## Как читать проект
+## Requirements
 
-1. `metrics/Metrics.java`: три счётчика и метод `reset()`.
-2. `structures/DynamicArray.java`: массив, размер, удвоение ёмкости и сдвиги.
-3. `structures/MyLinkedList.java`: узлы с `value` и `next`, ссылки `head` и `tail`.
-4. `structures/MinHeap.java`: вставка с подъёмом и извлечение с опусканием.
-5. `src/test/java`: проверки правильности.
-6. `benchmark/Benchmark.java`: запуск W1–W4 и сохранение результатов.
+- JDK 25 or newer (pom.xml compiles for Java 25).
+- Maven, or the local Maven in .tools.
+- Python 3 and matplotlib for plots. No pandas or seaborn is needed.
 
-`size()` возвращает количество элементов. `getMetrics()` возвращает счётчики структуры.
-`remove(index)` возвращает удалённое значение. Индексы начинаются с нуля.
-Для вставки разрешены индексы от `0` до `size`, для чтения и удаления — до `size - 1`.
-`hasHeapProperty()` проверяет порядок родителей и детей для тестов и не меняет метрики.
+Run all commands from the project root.
 
-## Запуск
+## Build
 
-Текущий `pom.xml` настроен на Java 25. Нужны JDK 25 или новее и Maven.
-Все команды выполняются из корня проекта.
+```powershell
+mvn compile
+```
+
+## Run tests
 
 ```powershell
 mvn test
-mvn compile
-java -cp target/classes benchmark.Benchmark
 ```
 
-Если Maven не установлен, для этого рабочего каталога скачан локальный Maven в `.tools`:
+JUnit reports are saved in target/surefire-reports.
+The tests cover empty structures, one element, duplicates, boundary indexes,
+invalid indexes, random correctness and heap order after insertion and extraction.
+
+## Local Maven alternative
+
+If mvn is not available on PATH:
 
 ```powershell
+& .\.tools\apache-maven-3.9.9\bin\mvn.cmd '-Dmaven.repo.local=.tools/repository' compile
 & .\.tools\apache-maven-3.9.9\bin\mvn.cmd '-Dmaven.repo.local=.tools/repository' test
+```
+
+## Run benchmark
+
+Build first, then run:
+
+```powershell
 java -cp target/classes benchmark.Benchmark
 ```
 
-`.tools` содержит локальный Maven, а `target` — файлы сборки и отчёты тестов.
-Они не являются частью исходного кода задания.
+The benchmark writes results/results.csv with this header:
 
-## Как устроен benchmark
+```text
+workload,variant,structure,n,time_ms,steps,moves,comparisons
+```
 
-В `main` для каждого размера вызываются четыре метода:
+There are 36 rows: nine cases for each size 100, 1000, 10000 and 100000.
+Each case has two warm-up runs and five measured runs.
+Only the five measured times are sorted; the middle value is the median.
+System.nanoTime() measures time, and division by 1000000 converts it to milliseconds.
 
-| Метод | Что измеряет |
+For each n, one int[] is generated with new Random(42) and values in 0..n-1.
+W1, W2 and both W3 variants fill the array and list with this same dataset.
+Random access indexes and search queries are also reproducible.
+
+| Workload | Operations |
 |---|---|
-| `randomAccess` | W1: 10000 случайных чтений |
-| `search` | W2: 500 успешных и 500 неуспешных поисков |
-| `insertAndRemove` | W3: 1000 вставок, затем 1000 удалений в начале или по индексу `n / 2` |
-| `priorityProcessing` | W4: n вставок и n извлечений из кучи |
+| W1 | 10000 random get calls |
+| W2 | 1000 contains calls: 500 values chosen from the dataset, 500 values in n..2n-1 |
+| W3 head | 1000 add(0, x), then 1000 remove(0) |
+| W3 middle | 1000 add(n / 2, x), then 1000 remove(n / 2) |
+| W4 | n heap inserts, then n extractions; output is checked for non-decreasing order |
 
-В каждом методе обычный цикл из семи запусков. Первые два — прогрев.
-Следующие пять времён сохраняются в `long[5]`.
-Метод `save` сортирует эти пять чисел и берёт среднее по позиции: `times[2]`.
-Это медиана, а не среднее арифметическое. Деление на 1000000 переводит наносекунды в миллисекунды.
+Setup and correctness checks are outside timing. W4 times both inserts and extractions.
+The middle index stays fixed throughout W3. Each benchmark run overwrites the CSV.
+Timing includes the cost of metrics and can vary with JVM compilation, GC and background tasks.
 
-W1–W3 заполняются значениями `0..n-1` до начала замера.
-Случайные индексы, запросы и значения W4 готовятся заранее с `new Random(42)`.
-Для массива и списка используются одинаковые входные данные.
-В W3 индекс середины фиксирован: он не пересчитывается после каждой вставки.
-В W4 в замер входят вставки и извлечения; проверка сортировки выполняется после замера.
-Проверки сумм и количества успешных поисков используют полученные значения после замера.
+## Generate plots
 
-Результат: `results/results.csv`, 36 строк данных и заголовок.
-Каждый запуск перезаписывает файл. Каталог `results/plots` оставлен для графиков.
-Время зависит от компьютера, JVM и фоновой нагрузки; это учебный benchmark.
+Install matplotlib once if needed:
 
-## Метрики
+```powershell
+python -m pip install matplotlib
+```
 
-- `steps`: одно чтение ячейки внутреннего массива или переход по `next`, включая переход к `null`.
-- `moves`: перенос элемента массива при сдвиге, расширении или обмене; изменение `head`, `tail` или `next`.
-- `comparisons`: сравнение значений при поиске или восстановлении порядка кучи.
+Then run:
 
-Запись нового значения массива не считается переносом. Обмен двух элементов — два переноса.
-Присваивание локальной переменной обхода списка не считается изменением структуры.
-Чтение `value` узла не является шагом по определению задания.
-Проверки индексов, границ цикла и размера не считаются сравнениями элементов.
-В `contains` сравнение сохранённого значения с искомым также считается сравнением.
-В W1–W3 счётчики обнуляются после заполнения. В W4 учитываются все вставки и извлечения.
-Счётчики берутся из последнего измеренного запуска: входные данные одинаковые,
-поэтому количество операций одинаково во всех пяти запусках.
+```powershell
+python results/generate_plots.py
+```
 
-## Что дополнить перед сдачей
+If Python is not on PATH, the interpreter used on this computer is:
 
-В `REPORT.md` оставлен каркас для данных студента, характеристик компьютера,
-разбора полученных чисел и выводов. Графики пока не созданы.
-JOL, `buildHeap` и бонусные задания не добавлялись.
+```powershell
+& 'C:\Users\bekza\AppData\Local\Python\pythoncore-3.14-64\python.exe' results/generate_plots.py
+```
+
+The script reads results/results.csv and creates ten PNG files in results/plots.
+Plots use a logarithmic n axis. Time plots also use a logarithmic time axis;
+operation plots use a linear operation axis so zero counts remain visible.
+
+## Where to find things
+
+- src/main/java/metrics/Metrics.java: steps, moves, comparisons and reset().
+- src/main/java/structures: the three structure implementations.
+- src/main/java/benchmark/Benchmark.java: one method per workload and CSV output.
+- src/test/java: JUnit 5 tests.
+- results/results.csv: measured times and operation counts.
+- results/plots: PNG charts for all four workloads.
+- results/generate_plots.py: the small plotting script.
+- REPORT.md: complexity tables, invariant proofs, plots and discussion.
+- target: generated classes and test reports.
+- .tools: local Maven and cached dependencies, not assignment source code.
+
+## Metrics and methods
+
+steps counts a read of one internal array cell or following a list next link,
+including a traversal to null. moves counts array shifts, resize copies and
+heap element relocation, or a change to head, tail or a node next link.
+comparisons counts value comparisons, including comparison with a contains query.
+Index checks and loop bounds do not count as element comparisons.
+
+Writing a new array value is not a move. Swapping two values is two moves.
+Changing a local traversal variable is not a structural pointer update.
+Reading a node value is not a step under the assignment definition.
+
+W1-W3 reset counters after filling. W4 counts all inserts and extractions.
+CSV counters come from the last measured run. All five runs use the same input,
+so operation counts are identical even when elapsed times differ.
+
+remove(index) returns the removed int. size() returns the current element count.
+getMetrics() returns the structure's counters. hasHeapProperty() is a diagnostic
+used by tests; its checks deliberately do not affect workload counters.
+Insertion permits indexes 0..size; reading and removal permit 0..size-1.
+
+## Git and scope
+
+main contains the completed assignment. feature/array, feature/list, feature/heap
+and feature/metrics point to the existing baseline commit with these implementations.
+These branches do not pretend to reconstruct an earlier development history.
+The v1.0 tag identifies the completed version. Nothing is pushed automatically.
+
+No JOL, memory-footprint bonus or buildHeap has been added.
